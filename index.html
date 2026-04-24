@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow — Glassmorphism</title>
+    <style>
+        /* ── Reset ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background blobs */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+            z-index: 0;
+        }
+        body::before {
+            width: 500px; height: 500px;
+            background: #ff6b6b;
+            top: -100px; right: -100px;
+            animation: float 15s ease-in-out infinite;
+        }
+        body::after {
+            width: 400px; height: 400px;
+            background: #4ecdc4;
+            bottom: -100px; left: -100px;
+            animation: float 20s ease-in-out infinite reverse;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50%       { transform: translate(50px, 50px); }
+        }
+
+        /* ── Layout ── */
+        .app-container { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            padding: 30px 20px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            position: fixed;
+            height: 100vh;
+            left: 0; top: 0;
+            z-index: 100;
+            transition: transform .3s ease;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .logo h1 { color: white; font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+        .logo p  { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 5px; }
+
+        .nav-menu { list-style: none; }
+        .nav-item  { margin-bottom: 10px; }
+        .nav-link {
+            display: flex; align-items: center;
+            padding: 15px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all .3s ease;
+            font-weight: 500; font-size: 16px;
+        }
+        .nav-link:hover  { background: rgba(255,255,255,0.15); color: white; transform: translateX(5px); }
+        .nav-link.active { background: rgba(255,255,255,0.25); color: white; box-shadow: 0 4px 15px rgba(255,255,255,0.1); }
+        .nav-icon { margin-right: 15px; font-size: 20px; }
+
+        /* Main content */
+        .main-content { margin-left: 280px; padding: 40px; flex: 1; min-height: 100vh; }
+        .section { display: none; animation: fadeIn .5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glass panel */
+        .glass-panel {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 30px;
+            transition: all .3s ease;
+        }
+        .glass-panel:hover { background: rgba(255,255,255,0.2); box-shadow: 0 12px 40px rgba(0,0,0,0.15); }
+
+        /* Page header */
+        .page-header {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 35px 40px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .page-header h2 { color: white; font-size: 36px; font-weight: 700; margin-bottom: 10px; }
+        .page-header p  { color: rgba(255,255,255,0.9); font-size: 16px; }
+
+        .streak-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(10px);
+            padding: 12px 30px;
+            border-radius: 50px;
+            color: white; font-size: 20px; font-weight: 600;
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .streak-badge span { font-size: 28px; color: #ffd700; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 15px; padding: 25px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform .3s ease;
+        }
+        .stat-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.2); }
+        .stat-value { font-size: 36px; font-weight: 700; color: white; margin-bottom: 8px; }
+        .stat-label { font-size: 14px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Forms */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px,1fr)); gap: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; color: white; font-weight: 600; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 14px 18px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 12px; color: white; font-size: 15px;
+            transition: all .3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .form-input::placeholder, .form-textarea::placeholder { color: rgba(255,255,255,0.6); }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+            box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+        }
+        .form-select option { background: #764ba2; color: white; }
+        .form-textarea { resize: vertical; min-height: 120px; font-family: inherit; }
+
+        /* Buttons */
+        .btn {
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 14px 32px; border-radius: 12px;
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            transition: all .3s ease;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255,255,255,0.2); }
+        .btn-small { padding: 8px 16px; font-size: 12px; margin-left: 8px; }
+        .btn-danger { background: rgba(239,68,68,0.3); border-color: rgba(239,68,68,0.5); }
+        .btn-danger:hover { background: rgba(239,68,68,0.5); }
+        .btn-success { background: rgba(34,197,94,0.3); border-color: rgba(34,197,94,0.5); }
+        .btn-success:hover { background: rgba(34,197,94,0.5); }
+
+        /* Task items */
+        .task-list { display: flex; flex-direction: column; gap: 15px; }
+        .task-item {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 15px; padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-left: 4px solid rgba(255,255,255,0.5);
+            transition: all .3s ease;
+        }
+        .task-item:hover { background: rgba(255,255,255,0.15); transform: translateX(5px); }
+        .task-item.completed { opacity: 0.6; border-left-color: #4ade80; }
+
+        .task-header { display: flex; align-items: center; gap: 15px; margin-bottom: 12px; flex-wrap: wrap; }
+        .task-checkbox { width: 22px; height: 22px; cursor: pointer; accent-color: #4ade80; flex-shrink: 0; }
+        .task-title { flex: 1; color: white; font-size: 17px; font-weight: 600; min-width: 100px; }
+        .task-title.completed { text-decoration: line-through; opacity: 0.7; }
+
+        .task-meta { display: flex; gap: 15px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+        .priority-badge { padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+        .priority-high   { background: rgba(239,68,68,0.3);   color: #fca5a5; border: 1px solid rgba(239,68,68,0.5); }
+        .priority-medium { background: rgba(251,146,60,0.3);  color: #fdba74; border: 1px solid rgba(251,146,60,0.5); }
+        .priority-low    { background: rgba(34,197,94,0.3);   color: #86efac; border: 1px solid rgba(34,197,94,0.5); }
+        .task-deadline { color: rgba(255,255,255,0.8); font-size: 13px; }
+
+        /* Subtasks */
+        .subtask-list { margin-top: 15px; padding-left: 35px; display: flex; flex-direction: column; gap: 8px; }
+        .subtask-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; background: rgba(255,255,255,0.08); border-radius: 10px; transition: background .3s ease; }
+        .subtask-item:hover { background: rgba(255,255,255,0.12); }
+        .subtask-item.completed { opacity: 0.6; }
+        .subtask-text { flex: 1; color: rgba(255,255,255,0.9); font-size: 14px; }
+        .subtask-text.completed { text-decoration: line-through; }
+        .subtask-form { margin-top: 12px; padding-left: 35px; display: none; }
+        .subtask-form.active { display: flex; gap: 10px; }
+
+        /* Diary */
+        .diary-textarea {
+            width: 100%; min-height: 200px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px; padding: 25px;
+            color: white; font-size: 16px; line-height: 1.8;
+            resize: vertical; font-family: 'Georgia', serif;
+        }
+        .diary-textarea::placeholder { color: rgba(255,255,255,0.5); }
+        .diary-textarea:focus { outline: none; background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+
+        .diary-entries { display: grid; gap: 20px; }
+        .diary-entry {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 15px; padding: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-left: 4px solid #fbbf24;
+        }
+        .diary-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .diary-date { color: rgba(255,255,255,0.9); font-weight: 600; font-size: 14px; }
+        .diary-content { color: rgba(255,255,255,0.9); line-height: 1.7; font-size: 15px; white-space: pre-wrap; }
+
+        /* Edit mode for diary */
+        .diary-edit-textarea {
+            width: 100%; min-height: 120px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 10px; padding: 15px;
+            color: white; font-size: 15px; line-height: 1.7;
+            resize: vertical; font-family: 'Georgia', serif;
+            margin-bottom: 10px;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            background: rgba(34,197,94,0.9);
+            color: white; padding: 14px 24px;
+            border-radius: 12px; font-size: 14px; font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            z-index: 9999;
+            transform: translateY(100px); opacity: 0;
+            transition: all .4s ease;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { background: rgba(239,68,68,0.9); }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.6); font-size: 16px; font-style: italic; }
+
+        /* Loading spinner */
+        .loading { text-align: center; padding: 30px; color: rgba(255,255,255,0.7); font-size: 15px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 20px; padding-top: 70px; }
+            .page-header h2 { font-size: 26px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .mobile-menu-btn { display: flex !important; }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            position: fixed; top: 15px; left: 15px;
+            z-index: 200;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 10px; padding: 10px 14px;
+            color: white; font-size: 20px; cursor: pointer;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+
+<!-- Mobile menu button -->
+<button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
+
+<div class="app-container">
+
+    <!-- ── SIDEBAR ─────────────────────────── -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <h1>✨ TaskFlow</h1>
+            <p>Your Productivity Companion</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#" class="nav-link active" data-section="home">
+                    <span class="nav-icon">🏠</span><span>Home</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="diary">
+                    <span class="nav-icon">📖</span><span>Diary</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- ── MAIN CONTENT ────────────────────── -->
+    <main class="main-content">
+
+        <!-- HOME SECTION -->
+        <section id="home" class="section active">
+
+            <div class="page-header">
+                <h2>Task Manager</h2>
+                <p>Organize your tasks and boost your productivity</p>
+                <div class="streak-badge">🔥 <span id="streakCount">0</span> Day Streak</div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTasks">0</div>
+                    <div class="stat-label">Total Tasks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="completedTasks">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingTasks">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+
+            <!-- Add task form -->
+            <div class="glass-panel">
+                <h3 style="color:white;margin-bottom:25px;font-size:20px;">➕ Create New Task</h3>
+                <form id="taskForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Task Title</label>
+                            <input type="text" class="form-input" id="taskTitle" placeholder="Enter task title" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" id="taskPriority">
+                                <option value="low">Low Priority</option>
+                                <option value="medium" selected>Medium Priority</option>
+                                <option value="high">High Priority</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Deadline</label>
+                            <input type="date" class="form-input" id="taskDeadline" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Add Task</button>
+                </form>
+            </div>
+
+            <!-- Task list -->
+            <div class="glass-panel">
+                <h3 style="color:white;margin-bottom:25px;font-size:20px;">📋 Your Tasks</h3>
+                <div id="taskList" class="task-list">
+                    <div class="loading">Loading tasks…</div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- DIARY SECTION -->
+        <section id="diary" class="section">
+
+            <div class="page-header">
+                <h2>Personal Diary</h2>
+                <p>Capture your thoughts, reflections, and daily moments</p>
+            </div>
+
+            <div class="glass-panel">
+                <h3 style="color:white;margin-bottom:20px;font-size:20px;">✍️ Write Your Entry</h3>
+                <form id="diaryForm">
+                    <textarea class="diary-textarea" id="diaryContent"
+                        placeholder="Dear diary, today was…" required></textarea>
+                    <button type="submit" class="btn" style="margin-top:20px;">Save Entry</button>
+                </form>
+            </div>
+
+            <div class="glass-panel">
+                <h3 style="color:white;margin-bottom:25px;font-size:20px;">📚 Past Entries</h3>
+                <div id="diaryList" class="diary-entries">
+                    <div class="loading">Loading entries…</div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+</div>
+
+<!-- Toast notification element -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+const API = "http://127.0.0.1:5000";  // Flask backend URL
+
+// In-memory state (always uses MongoDB _id as the key)
+let tasks        = [];
+let diaryEntries = [];
+let streakData   = JSON.parse(localStorage.getItem("streakData")) || { count: 0, lastActive: null };
+
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST  (small pop-up message at the bottom of the screen)
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, isError = false) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className   = "toast" + (isError ? " error" : "");
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll(".nav-link").forEach(link => {
+    link.addEventListener("click", function (e) {
+        e.preventDefault();
+        document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+        document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+        this.classList.add("active");
+        document.getElementById(this.dataset.section).classList.add("active");
+        // Close sidebar on mobile after clicking
+        document.getElementById("sidebar").classList.remove("mobile-open");
+    });
+});
+
+function toggleMobileSidebar() {
+    document.getElementById("sidebar").classList.toggle("mobile-open");
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  DATE HELPERS
+// ═══════════════════════════════════════════════════════════
+function setMinDate() {
+    document.getElementById("taskDeadline").min = new Date().toISOString().split("T")[0];
+}
+
+function fmtDate(str) {
+    if (!str) return "No deadline";
+    // str can be "2025-04-15" (date input) or an ISO string
+    const d = new Date(str.includes("T") ? str : str + "T00:00:00");
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function fmtDateTime(str) {
+    const d = new Date(str);
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  STREAK  (counts how many days in a row you opened the app)
+// ═══════════════════════════════════════════════════════════
+function updateStreak() {
+    const today     = new Date().toDateString();
+    const lastActive = streakData.lastActive ? new Date(streakData.lastActive).toDateString() : null;
+
+    if (lastActive !== today) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (lastActive === yesterday.toDateString()) {
+            streakData.count++;          // continued streak
+        } else {
+            streakData.count = 1;        // streak reset (or first visit)
+        }
+        streakData.lastActive = new Date().toISOString();
+        localStorage.setItem("streakData", JSON.stringify(streakData));
+    }
+    document.getElementById("streakCount").textContent = streakData.count;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════════
+function updateStats() {
+    const total     = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    document.getElementById("totalTasks").textContent     = total;
+    document.getElementById("completedTasks").textContent = completed;
+    document.getElementById("pendingTasks").textContent   = total - completed;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER TASKS
+//  IMPORTANT: every task from MongoDB has an _id string.
+//  We always use task._id (never a numeric id) for API calls.
+// ═══════════════════════════════════════════════════════════
+function renderTasks() {
+    const container = document.getElementById("taskList");
+
+    if (tasks.length === 0) {
+        container.innerHTML = '<div class="empty-state">No tasks yet. Create your first task above!</div>';
+        return;
+    }
+
+    container.innerHTML = tasks.map(task => `
+        <div class="task-item ${task.completed ? "completed" : ""}" id="task-${task._id}">
+            <div class="task-header">
+                <input type="checkbox" class="task-checkbox"
+                       ${task.completed ? "checked" : ""}
+                       onchange="toggleTask('${task._id}')">
+                <div class="task-title ${task.completed ? "completed" : ""}">${escHtml(task.title)}</div>
+                <button class="btn btn-small" onclick="toggleSubtaskForm('${task._id}')">+ Subtask</button>
+                <button class="btn btn-small btn-danger" onclick="deleteTask('${task._id}')">Delete</button>
+            </div>
+            <div class="task-meta">
+                <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+                <span class="task-deadline">📅 Due: ${fmtDate(task.deadline)}</span>
+            </div>
+            <!-- Inline subtask input (hidden by default) -->
+            <div class="subtask-form" id="subtaskForm-${task._id}">
+                <input type="text" class="form-input"
+                       placeholder="Subtask title"
+                       id="subtaskInput-${task._id}"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtask('${task._id}');}">
+                <button class="btn btn-small" onclick="addSubtask('${task._id}')">Add</button>
+            </div>
+            <!-- Subtask list -->
+            <div class="subtask-list">
+                ${renderSubtasks(task)}
+            </div>
+        </div>
+    `).join("");
+}
+
+function renderSubtasks(task) {
+    if (!task.subtasks || task.subtasks.length === 0) return "";
+    return task.subtasks.map((sub, idx) => `
+        <div class="subtask-item ${sub.completed ? "completed" : ""}">
+            <input type="checkbox" class="task-checkbox"
+                   ${sub.completed ? "checked" : ""}
+                   onchange="toggleSubtask('${task._id}', ${idx})">
+            <span class="subtask-text ${sub.completed ? "completed" : ""}">${escHtml(sub.title)}</span>
+            <button class="btn btn-small btn-danger" onclick="deleteSubtask('${task._id}', ${idx})">×</button>
+        </div>
+    `).join("");
+}
+
+function escHtml(str) {
+    // Prevent XSS when rendering user content
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD TASKS  (GET /tasks)
+// ═══════════════════════════════════════════════════════════
+async function loadTasks() {
+    try {
+        const res = await fetch(`${API}/tasks`);
+        if (!res.ok) throw new Error("Server error");
+        tasks = await res.json();
+    } catch {
+        // If backend is down, fall back to localStorage
+        tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        showToast("⚠️ Using offline data (backend not reachable)", true);
+    }
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+    renderTasks();
+    updateStats();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  ADD TASK  (POST /tasks)
+// ═══════════════════════════════════════════════════════════
+document.getElementById("taskForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const payload = {
+        title:     document.getElementById("taskTitle").value.trim(),
+        priority:  document.getElementById("taskPriority").value,
+        deadline:  document.getElementById("taskDeadline").value,
+        completed: false,
+        subtasks:  [],
+        createdAt: new Date().toISOString(),
+    };
+
+    try {
+        const res  = await fetch(`${API}/tasks`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify(payload),
+        });
+        const saved = await res.json();
+        tasks.unshift(saved);   // Add to the top of the list
+        showToast("✅ Task added!");
+    } catch {
+        // Offline fallback: give it a temporary _id
+        payload._id = "local_" + Date.now();
+        tasks.unshift(payload);
+        showToast("⚠️ Saved locally (backend offline)", true);
+    }
+
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+    renderTasks();
+    updateStats();
+    this.reset();
+    setMinDate();
+});
+
+
+// ═══════════════════════════════════════════════════════════
+//  TOGGLE TASK COMPLETE  (PUT /tasks/:id)
+// ═══════════════════════════════════════════════════════════
+async function toggleTask(taskId) {
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    task.completed = !task.completed;   // Flip locally first for instant UI feedback
+    renderTasks();
+    updateStats();
+
+    try {
+        await fetch(`${API}/tasks/${taskId}`, {
+            method:  "PUT",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ completed: task.completed }),
+        });
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    } catch {
+        showToast("⚠️ Could not sync with server", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SUBTASK FORM TOGGLE
+// ═══════════════════════════════════════════════════════════
+function toggleSubtaskForm(taskId) {
+    document.getElementById(`subtaskForm-${taskId}`).classList.toggle("active");
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  ADD SUBTASK  (PUT /tasks/:id  with updated subtasks array)
+// ═══════════════════════════════════════════════════════════
+async function addSubtask(taskId) {
+    const input = document.getElementById(`subtaskInput-${taskId}`);
+    const title = input.value.trim();
+    if (!title) return;
+
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    task.subtasks = task.subtasks || [];
+    task.subtasks.push({ title, completed: false });
+    input.value = "";
+
+    renderTasks();
+
+    try {
+        await fetch(`${API}/tasks/${taskId}`, {
+            method:  "PUT",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ subtasks: task.subtasks }),
+        });
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        showToast("✅ Subtask added!");
+    } catch {
+        showToast("⚠️ Could not sync subtask", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  TOGGLE SUBTASK COMPLETE
+// ═══════════════════════════════════════════════════════════
+async function toggleSubtask(taskId, idx) {
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    task.subtasks[idx].completed = !task.subtasks[idx].completed;
+    renderTasks();
+
+    try {
+        await fetch(`${API}/tasks/${taskId}`, {
+            method:  "PUT",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ subtasks: task.subtasks }),
+        });
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    } catch {
+        showToast("⚠️ Could not sync subtask", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  DELETE SUBTASK
+// ═══════════════════════════════════════════════════════════
+async function deleteSubtask(taskId, idx) {
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    task.subtasks.splice(idx, 1);
+    renderTasks();
+
+    try {
+        await fetch(`${API}/tasks/${taskId}`, {
+            method:  "PUT",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ subtasks: task.subtasks }),
+        });
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    } catch {
+        showToast("⚠️ Could not sync deletion", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  DELETE TASK  (DELETE /tasks/:id)
+// ═══════════════════════════════════════════════════════════
+async function deleteTask(taskId) {
+    if (!confirm("Delete this task?")) return;
+
+    tasks = tasks.filter(t => t._id !== taskId);
+    renderTasks();
+    updateStats();
+
+    try {
+        await fetch(`${API}/tasks/${taskId}`, { method: "DELETE" });
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        showToast("🗑️ Task deleted");
+    } catch {
+        showToast("⚠️ Could not delete from server", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER DIARY
+// ═══════════════════════════════════════════════════════════
+function renderDiary() {
+    const container = document.getElementById("diaryList");
+
+    if (diaryEntries.length === 0) {
+        container.innerHTML = '<div class="empty-state">No diary entries yet. Start writing!</div>';
+        return;
+    }
+
+    container.innerHTML = diaryEntries.map(entry => `
+        <div class="diary-entry" id="diary-${entry._id}">
+            <div class="diary-entry-header">
+                <div class="diary-date">${fmtDateTime(entry.date)}</div>
+                <div>
+                    <button class="btn btn-small" onclick="editDiary('${entry._id}')">Edit</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteDiary('${entry._id}')">Delete</button>
+                </div>
+            </div>
+            <div class="diary-content" id="diaryContent-${entry._id}">${escHtml(entry.content)}</div>
+        </div>
+    `).join("");
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD DIARY  (GET /diary)
+// ═══════════════════════════════════════════════════════════
+async function loadDiary() {
+    try {
+        const res = await fetch(`${API}/diary`);
+        if (!res.ok) throw new Error("Server error");
+        diaryEntries = await res.json();
+    } catch {
+        diaryEntries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+    }
+    localStorage.setItem("diaryEntries", JSON.stringify(diaryEntries));
+    renderDiary();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  ADD DIARY ENTRY  (POST /diary)
+// ═══════════════════════════════════════════════════════════
+document.getElementById("diaryForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const content = document.getElementById("diaryContent").value.trim();
+    if (!content) return;
+
+    const payload = { content, date: new Date().toISOString() };
+
+    try {
+        const res   = await fetch(`${API}/diary`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify(payload),
+        });
+        const saved = await res.json();
+        diaryEntries.unshift(saved);
+        showToast("✅ Diary entry saved!");
+    } catch {
+        payload._id = "local_" + Date.now();
+        diaryEntries.unshift(payload);
+        showToast("⚠️ Saved locally (backend offline)", true);
+    }
+
+    localStorage.setItem("diaryEntries", JSON.stringify(diaryEntries));
+    renderDiary();
+    document.getElementById("diaryContent").value = "";
+});
+
+
+// ═══════════════════════════════════════════════════════════
+//  EDIT DIARY  (inline editing)
+// ═══════════════════════════════════════════════════════════
+function editDiary(entryId) {
+    const entry   = diaryEntries.find(e => e._id === entryId);
+    if (!entry) return;
+
+    const contentDiv = document.getElementById(`diaryContent-${entryId}`);
+    // Replace the text with a textarea pre-filled with current content
+    contentDiv.innerHTML = `
+        <textarea class="diary-edit-textarea" id="editArea-${entryId}">${entry.content}</textarea>
+        <button class="btn btn-small btn-success" onclick="saveEditDiary('${entryId}')">Save</button>
+        <button class="btn btn-small btn-danger"  onclick="renderDiary()">Cancel</button>
+    `;
+}
+
+async function saveEditDiary(entryId) {
+    const textarea = document.getElementById(`editArea-${entryId}`);
+    const newContent = textarea ? textarea.value.trim() : "";
+    if (!newContent) return;
+
+    const entry = diaryEntries.find(e => e._id === entryId);
+    if (!entry) return;
+    entry.content = newContent;
+
+    try {
+        await fetch(`${API}/diary/${entryId}`, {
+            method:  "PUT",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ content: newContent }),
+        });
+        localStorage.setItem("diaryEntries", JSON.stringify(diaryEntries));
+        showToast("✅ Entry updated!");
+    } catch {
+        showToast("⚠️ Could not sync edit", true);
+    }
+
+    renderDiary();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  DELETE DIARY  (DELETE /diary/:id)
+// ═══════════════════════════════════════════════════════════
+async function deleteDiary(entryId) {
+    if (!confirm("Delete this diary entry?")) return;
+
+    diaryEntries = diaryEntries.filter(e => e._id !== entryId);
+    renderDiary();
+
+    try {
+        await fetch(`${API}/diary/${entryId}`, { method: "DELETE" });
+        localStorage.setItem("diaryEntries", JSON.stringify(diaryEntries));
+        showToast("🗑️ Entry deleted");
+    } catch {
+        showToast("⚠️ Could not delete from server", true);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  INIT  — runs when the page first loads
+// ═══════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+    updateStreak();
+    setMinDate();
+    loadTasks();
+    loadDiary();
+});
+</script>
+</body>
+</html>
